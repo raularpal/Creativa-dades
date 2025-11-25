@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Éxito - La Creativa</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .success-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <nav>
+        <div class="brand">Creativa DADES</div>
+        <div>
+            <a href="{{ url_for('form') }}">Nueva Factura</a>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        </div>
+    </nav>
+
+    <div class="container" style="text-align: center; max-width: 600px;">
+        <div class="card">
+            <span class="success-icon">✅</span>
+            <h1>¡Factura Generada!</h1>
+            <p>El proceso se ha completado correctamente.</p>
+            <ul style="text-align: left; margin: 2rem 0; color: var(--text-light);">
+                <li>Datos guardados en <strong>DADES</strong></li>
+                <li>Cliente verificado/creado en <strong>CLIENTS</strong></li>
+                <li>Resumen añadido a <strong>COMANDES</strong></li>
+                <li>PDF generado correctamente</li>
+            </ul>
+
+            <div style="display: grid; gap: 1rem;">
+                <a href="{{ url_for('get_invoice', filename=pdf_filename) }}" target="_blank" class="btn-primary"
+                    style="text-decoration: none; display: inline-block; line-height: 1.5;">
+                    📄 Ver/Descargar Factura {{ invoice_id }}
+                </a>
+                <a href="{{ url_for('dashboard') }}" style="color: var(--text-light); text-decoration: underline;">Ir al
+                    Dashboard</a>
+                <a href="{{ url_for('form') }}" style="color: var(--primary); font-weight: 600;">Crear otra factura</a>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
