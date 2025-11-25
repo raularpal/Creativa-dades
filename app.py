@@ -23,7 +23,10 @@ def form():
         print(f"ERROR CRITICO: {e}")
         import traceback
         traceback.print_exc()
-        return f"Ha ocurrido un error interno: {e}", 500
+        # Debug info
+        cwd = os.getcwd()
+        files = os.listdir(cwd)
+        return f"Error: {e}. <br>CWD: {cwd} <br>Files: {files}", 500
 
 @app.route('/dashboard')
 def dashboard():

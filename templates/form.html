@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva Factura - La Creativa</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav>
+        <div class="brand">Creativa DADES</div>
+        <div>
+            <a href="{{ url_for('form') }}" style="color: var(--primary);">Nueva Factura</a>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <h2>📝 Crear Nueva Factura</h2>
+            <p style="color: var(--text-light); margin-bottom: 2rem;">Introduce los datos del cliente y los productos. El sistema calculará todo automáticamente.</p>
+            
+            <form method="POST" action="{{ url_for('form') }}">
+                <h3>Datos del Cliente</h3>
+                <div class="form-group">
+                    <label>Nombre Completo / Empresa</label>
+                    <input type="text" name="name" required placeholder="Ej. Empresa S.L.">
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>NIF / CIF</label>
+                        <input type="text" name="nif" required placeholder="B-12345678">
+                    </div>
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        <input type="tel" name="phone" required placeholder="600 000 000">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" name="email" required placeholder="cliente@empresa.com">
+                </div>
+
+                <div class="form-group">
+                    <label>Dirección</label>
+                    <input type="text" name="address" placeholder="C/ Ejemplo, 123">
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Población</label>
+                        <input type="text" name="city" placeholder="Barcelona">
+                    </div>
+                    <div class="form-group">
+                        <label>CP</label>
+                        <input type="text" name="zip" placeholder="08000">
+                    </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 2rem 0;">
+
+                <h3>Productos / Servicios</h3>
+                <div class="product-header" style="display: grid; grid-template-columns: 3fr 1fr 1fr; gap: 1rem; margin-bottom: 0.5rem; font-size: 0.875rem; color: var(--text-light);">
+                    <div>Concepto</div>
+                    <div>Cantidad</div>
+                    <div>Precio Unit. (€)</div>
+                </div>
+
+                {% for i in range(1, 7) %}
+                <div class="product-row">
+                    <input type="text" name="prod_name_{{i}}" placeholder="Producto {{i}}">
+                    <input type="number" name="prod_qty_{{i}}" placeholder="1" min="1">
+                    <input type="number" name="prod_price_{{i}}" placeholder="0.00" step="0.01">
+                </div>
+                {% endfor %}
+
+                <div style="margin-top: 2rem;">
+                    <button type="submit" class="btn-primary">Generar Factura y Procesar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
