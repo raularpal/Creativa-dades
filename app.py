@@ -1,43 +1,42 @@
-from flask import Flask, render_template, request, send_from_directory, redirect, url_for
-import automation
+from flask import Flask, request, jsonify, send_from_directory
 import database
 import os
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='.', static_url_path='')
 
 # Initialize DB on startup
 database.init_db()
 
 @app.route('/')
 def index():
-    return redirect(url_for('form'))
+    return send_from_directory('.', 'index.html')
 
-@app.route('/form', methods=['GET', 'POST'])
-def form():
-    try:
-        if request.method == 'POST':
-            invoice_id, pdf_filename = automation.process_order(request.form)
-            return render_template('success.html', invoice_id=invoice_id, pdf_filename=pdf_filename)
-        return render_template('form.html')
-    except Exception as e:
-        print(f"ERROR CRITICO: {e}")
-        import traceback
-        traceback.print_exc()
-        # Debug info
-        cwd = os.getcwd()
-        files = os.listdir(cwd)
-        return f"Error: {e}. <br>CWD: {cwd} <br>Files: {files}", 500
+@app.route('/api/counters', methods=['GET', 'POST'])
+def handle_counters():
+    if request.method == 'POST':
+        counters = request.json
+        database.save_counters(counters)
+        return jsonify({"status": "success"})
+    else:
+        return jsonify(database.get_counters())
 
-@app.route('/dashboard')
-def dashboard():
-    dades = database.get_dades()
-    clients = database.get_clients()
-    comandes = database.get_comandes()
-    return render_template('dashboard.html', dades=dades, clients=clients, comandes=comandes)
+@app.route('/api/invoices', methods=['GET', 'POST'])
+def handle_invoices():
+    if request.method == 'POST':
+        invoice = request.json
+        database.save_invoice(invoice)
+        return jsonify({"status": "success"})
+    else:
+        return jsonify(database.get_invoices())
 
-@app.route('/invoices/<filename>')
-def get_invoice(filename):
-    return send_from_directory('invoices', filename)
+@app.route('/api/clients', methods=['GET', 'POST'])
+def handle_clients():
+    if request.method == 'POST':
+        client = request.json
+        database.add_client(client)
+        return jsonify({"status": "success"})
+    else:
+        return jsonify(database.get_clients())
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

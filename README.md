@@ -1,64 +1,95 @@
-# Creativa DADES - Sistema de Gestión
+# Creativa DADES - Sistema de Facturació
 
-Este proyecto es una réplica completa del sistema de automatización "Creativa DADES", construido como una aplicación web independiente.
+## 🚀 Característiques
 
-## Requisitos
+- ✅ Generació de factures en PDF amb disseny professional
+- ✅ Enviament automàtic per correu al client
+- ✅ Emmagatzematge local de totes les factures
+- ✅ Tauler amb estadístiques i llistat de factures
+- ✅ Disseny premium amb mode fosc i glassmorphism
+- ✅ 100% funcional sense necessitat de backend
 
-- Python 3.8 o superior
-- pip (gestor de paquetes de Python)
+## 📋 Com utilitzar
 
-## Instalación Local
+### 1. Obrir l'aplicació
 
-1.  Abre una terminal en la carpeta del proyecto.
-2.  Instala las dependencias necesarias:
-    ```bash
-    pip install -r requirements.txt
-    ```
+Simplement obre `index.html` al teu navegador. No necessites servidor web.
 
-## Configuración de Email (Opcional)
+### 2. Configurar EmailJS (opcional però recomanat)
 
-Para que el sistema envíe correos reales, configura las variables de entorno:
+Perquè l'enviament automàtic de correus funcioni:
 
-**En Mac/Linux:**
-```bash
-export SMTP_USER="tu_email@gmail.com"
-export SMTP_PASSWORD="tu_contraseña_de_aplicacion"
+1. Ves a [EmailJS](https://www.emailjs.com/) i crea un compte gratuït
+2. Crea un servei de correu (Gmail, Outlook, etc.)
+3. Crea una plantilla de correu amb aquests paràmetres:
+   - `{{to_email}}` - Correu del destinatari
+   - `{{client_name}}` - Nom del client
+   - `{{invoice_number}}` - Número de factura
+   - `{{amount}}` - Import
+   - `{{description}}` - Descripció
+4. Copia les teves credencials i enganxa-les a `script.js`:
+   ```javascript
+   const EMAILJS_PUBLIC_KEY = 'la_teva_public_key';
+   const EMAILJS_SERVICE_ID = 'el_teu_service_id';
+   const EMAILJS_TEMPLATE_ID = 'el_teu_template_id';
+   ```
+
+### 3. Generar factures
+
+1. Omple el formulari amb les dades del client
+2. Fes clic a "Generar i Enviar Factura"
+3. El PDF es descarregarà automàticament
+4. Si EmailJS està configurat, s'enviarà per correu
+5. La factura es desarà al tauler
+
+### 4. Veure tauler
+
+Fes clic al botó "Tauler" per veure:
+- Total de factures generades
+- Import total facturat
+- Mitjana per factura
+- Llistat complet de totes les factures
+
+## 🎨 Característiques del disseny
+
+- **Dark mode premium** amb gradients
+- **Glassmorphism** en tots els components
+- **Animacions suaus** en interaccions
+- **Responsive** per a mòbils i tauletes
+- **Tipografia moderna** (Inter de Google Fonts)
+
+## 📦 Tecnologies
+
+- HTML5
+- CSS3 (Vanilla CSS amb variables)
+- JavaScript (ES6+)
+- jsPDF (generació de PDFs)
+- EmailJS (enviament de correus)
+- localStorage (persistència de dades)
+
+## 🔧 Personalització
+
+Pots personalitzar els colors editant les variables CSS a `style.css`:
+
+```css
+:root {
+  --bg-color: #0a0a0a;
+  --primary-color: #1e90ff;
+  --secondary-color: #63b3ed;
+  /* ... més variables */
+}
 ```
 
-## Ejecución Local
+## 📱 Pròxims passos
 
-1.  Inicia el servidor web:
-    ```bash
-    python app.py
-    ```
-2.  Abre tu navegador web y ve a: `http://localhost:5000`
+- [ ] Integració amb Google Sheets per a backup al núvol
+- [ ] Exportar tauler a Excel
+- [ ] Plantilles de factura personalitzables
+- [ ] Gestió de clients
+- [ ] Desplegament a Vercel/Netlify
 
-## Despliegue en la Nube (Deploy)
+## 💡 Notes
 
-Esta aplicación está lista para ser desplegada en plataformas como **Render**, **Heroku** o **Railway**.
-
-### Opción 1: Render (Recomendado - Gratuito)
-1.  Sube este código a un repositorio de GitHub.
-2.  Crea una cuenta en [Render.com](https://render.com).
-3.  Haz clic en "New Web Service".
-4.  Conecta tu repositorio de GitHub.
-5.  Render detectará automáticamente el archivo `requirements.txt` y usará el comando del `Procfile` (`gunicorn app:app`).
-6.  En la sección "Environment Variables", añade `SMTP_USER` y `SMTP_PASSWORD` si quieres que funcionen los emails.
-7.  Haz clic en "Create Web Service". ¡Listo!
-
-### Opción 2: Docker
-Si prefieres usar contenedores:
-```bash
-docker build -t creativa-dades .
-docker run -p 5000:5000 creativa-dades
-```
-
-## Estructura del Proyecto
-
--   `app.py`: El servidor principal.
--   `automation.py`: Lógica de negocio.
--   `email_sender.py`: Envío de emails.
--   `database.py`: Gestión de datos (JSON).
--   `pdf_generator.py`: Generador de PDF.
--   `Procfile`: Configuración para despliegue en la nube.
--   `Dockerfile`: Configuración para Docker.
+- Les dades es desen al localStorage del navegador
+- Si esborres les dades del navegador, perdràs les factures desades
+- Per a producció, considera utilitzar una base de dades real

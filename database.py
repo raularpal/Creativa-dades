@@ -69,3 +69,22 @@ def add_comanda(summary):
 
 def get_comandes():
     return _load_json(COMANDES_FILE)
+
+COUNTERS_FILE = os.path.join(DATA_DIR, 'counters.json')
+
+def get_counters():
+    if not os.path.exists(COUNTERS_FILE):
+        return {"Comanda": 0, "Pressupost": 0}
+    return _load_json(COUNTERS_FILE)
+
+def save_counters(counters):
+    _save_json(COUNTERS_FILE, counters)
+
+def save_invoice(invoice):
+    # Using comandes file for invoices
+    data = _load_json(COMANDES_FILE)
+    data.append(invoice)
+    _save_json(COMANDES_FILE, data)
+
+def get_invoices():
+    return _load_json(COMANDES_FILE)
