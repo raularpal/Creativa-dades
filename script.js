@@ -749,15 +749,45 @@ document.getElementById('invoice-form').addEventListener('submit', async (e) => 
 });
 
 // Load clients table
+// View client invoices
+function viewClientInvoices(phone) {
+  showSection('invoices');
+  const searchInput = document.getElementById('filter-client-search');
+  if (searchInput) {
+    searchInput.value = phone;
+    filterInvoices();
+  }
+}
+
 // Load clients table
 async function loadClients(searchTerm = '') {
-  const clients = await fetchClients();
+  // Fetch both clients and invoices
+  const [clients, invoices] = await Promise.all([
+    fetchClients(),
+    fetchInvoices()
+  ]);
+
+  // Calculate totals per client based on phone number
+  const clientsWithStats = clients.map(client => {
+    // Filter invoices by client phone
+    const clientInvoices = invoices.filter(inv => inv.phone === client.phone);
+
+    const invoiceCount = clientInvoices.length;
+    // Sum total amount
+    const totalAmount = clientInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+
+    return {
+      ...client,
+      invoiceCount,
+      totalAmount
+    };
+  });
 
   // Filter by search term
-  let filteredClients = clients;
+  let filteredClients = clientsWithStats;
   if (searchTerm) {
     const term = searchTerm.toLowerCase();
-    filteredClients = clients.filter(c =>
+    filteredClients = clientsWithStats.filter(c =>
       c.client.toLowerCase().includes(term) ||
       c.phone.includes(term) ||
       c.email.toLowerCase().includes(term) ||
@@ -775,14 +805,14 @@ async function loadClients(searchTerm = '') {
             <th>Telèfon</th>
             <th>Correu</th>
             <th>Direcció</th>
-            <th>DNI</th>
+            <th>NIF/DNI</th>
             <th>Factures</th>
             <th>Total (€)</th>
           </tr>
         </thead>
         <tbody>
           ${filteredClients.map(c => `
-            <tr>
+            <tr onclick="viewClientInvoices('${c.phone}')" style="cursor: pointer;" title="Veure fitxes del client">
               <td>${c.client}</td>
               <td>${c.phone}</td>
               <td>${c.email}</td>
