@@ -1,7 +1,0 @@
-flask
-fpdf
-gunicorn
-python-dotenv
-gspread
-google-auth
-supabase
