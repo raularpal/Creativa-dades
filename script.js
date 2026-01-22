@@ -17,6 +17,15 @@ const COUNTERS_KEY = 'creativa_dades_counters';
 const IVA_RATE = 0.21; // 21%
 let productCount = 1;
 
+// Helper to format dates as dd-mm-yyyy
+function formatDate(dateInput) {
+  const d = new Date(dateInput);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
 // Map invoice from DB to App format
 function mapInvoiceFromDB(dbInvoice) {
   return {
@@ -732,8 +741,8 @@ document.getElementById('invoice-form').addEventListener('submit', async (e) => 
   const invoiceData = {
     invoiceNumber: documentNumber,
     documentType: documentType,
-    entryDate: isEditMode ? originalEntryDate || new Date().toLocaleDateString('ca-ES') : new Date().toLocaleDateString('ca-ES'),
-    deliveryDate: formData.get('delivery-date') ? new Date(formData.get('delivery-date')).toLocaleDateString('ca-ES') : 'dd/mm/aaaa',
+    entryDate: isEditMode ? (originalEntryDate || formatDate(new Date())) : formatDate(new Date()),
+    deliveryDate: formData.get('delivery-date') ? formatDate(formData.get('delivery-date')) : 'dd-mm-aaaa',
     client: formData.get('client'),
     phone: formData.get('phone'),
     address: formData.get('address') || '',
@@ -898,65 +907,74 @@ function viewClientInvoices(phone) {
   }
 }
 
+let cachedClients = null;
+
 // Load clients table
-async function loadClients(searchTerm = '') {
-  // Fetch all invoices
-  const invoices = await fetchInvoices();
+async function loadClients(searchTerm = '', forceRefresh = false) {
+  // Fetch only if needed
+  if (!cachedClients || forceRefresh) {
+    const invoices = await fetchInvoices();
 
-  // Group invoices by phone number to avoid duplicates
-  const clientsByPhone = {};
+    // Group invoices by phone number to avoid duplicates
+    const clientsByPhone = {};
 
-  invoices.forEach(inv => {
-    const phone = inv.phone;
+    invoices.forEach(inv => {
+      const phone = inv.phone;
 
-    if (!clientsByPhone[phone]) {
-      // First invoice for this phone number - create client entry
-      clientsByPhone[phone] = {
-        client: inv.client,
-        phone: inv.phone,
-        email: inv.email || '',
-        dni: inv.dni || '',
-        address: inv.address || '',
-        city: inv.city || '',
-        postalCode: inv.postalCode || '',
-        invoiceCount: 0,
-        totalAmount: 0,
-        lastInvoiceDate: inv.timestamp
-      };
-    } else {
-      // Update client info with most recent invoice data if this invoice is newer
-      if (inv.timestamp > clientsByPhone[phone].lastInvoiceDate) {
-        clientsByPhone[phone].client = inv.client;
-        clientsByPhone[phone].email = inv.email || clientsByPhone[phone].email;
-        clientsByPhone[phone].dni = inv.dni || clientsByPhone[phone].dni;
-        clientsByPhone[phone].address = inv.address || clientsByPhone[phone].address;
-        clientsByPhone[phone].city = inv.city || clientsByPhone[phone].city;
-        clientsByPhone[phone].postalCode = inv.postalCode || clientsByPhone[phone].postalCode;
-        clientsByPhone[phone].lastInvoiceDate = inv.timestamp;
+      if (!clientsByPhone[phone]) {
+        // First invoice for this phone number - create client entry
+        clientsByPhone[phone] = {
+          client: inv.client,
+          phone: inv.phone,
+          email: inv.email || '',
+          dni: inv.dni || '',
+          address: inv.address || '',
+          city: inv.city || '',
+          postalCode: inv.postalCode || '',
+          invoiceCount: 0,
+          totalAmount: 0,
+          lastInvoiceDate: inv.timestamp
+        };
+      } else {
+        // Update client info with most recent invoice data if this invoice is newer
+        if (inv.timestamp > clientsByPhone[phone].lastInvoiceDate) {
+          clientsByPhone[phone].client = inv.client;
+          clientsByPhone[phone].email = inv.email || clientsByPhone[phone].email;
+          clientsByPhone[phone].dni = inv.dni || clientsByPhone[phone].dni;
+          clientsByPhone[phone].address = inv.address || clientsByPhone[phone].address;
+          clientsByPhone[phone].city = inv.city || clientsByPhone[phone].city;
+          clientsByPhone[phone].postalCode = inv.postalCode || clientsByPhone[phone].postalCode;
+          clientsByPhone[phone].lastInvoiceDate = inv.timestamp;
+        }
       }
-    }
 
-    // Add invoice to count and total
-    clientsByPhone[phone].invoiceCount++;
-    clientsByPhone[phone].totalAmount += inv.total || 0;
-  });
+      // Add invoice to count and total
+      clientsByPhone[phone].invoiceCount++;
+      clientsByPhone[phone].totalAmount += inv.total || 0;
+    });
 
-  // Convert to array
-  let clientsArray = Object.values(clientsByPhone);
+    // Convert to array and sort
+    cachedClients = Object.values(clientsByPhone);
+    cachedClients.sort((a, b) => a.client.localeCompare(b.client));
+  }
 
-  // Sort by name
-  clientsArray.sort((a, b) => a.client.localeCompare(b.client));
-
-  // Filter by search term
-  let filteredClients = clientsArray;
+  // Filter by search term using cached data
+  let filteredClients = cachedClients;
   if (searchTerm) {
     const term = searchTerm.toLowerCase();
-    filteredClients = clientsArray.filter(c =>
-      c.client.toLowerCase().includes(term) ||
-      c.phone.includes(term) ||
-      c.email.toLowerCase().includes(term) ||
-      c.dni.toLowerCase().includes(term)
-    );
+    filteredClients = cachedClients.filter(c => {
+      const clientName = c.client ? c.client.toLowerCase() : '';
+      const phone = c.phone ? c.phone.toString() : '';
+      const email = c.email ? c.email.toLowerCase() : '';
+      const dni = c.dni ? c.dni.toLowerCase() : '';
+      
+      return (
+        clientName.includes(term) ||
+        phone.includes(term) ||
+        email.includes(term) ||
+        dni.includes(term)
+      );
+    });
   }
 
   // Generate table HTML
@@ -1025,19 +1043,26 @@ async function loadInvoicesTable(startDate = null, endDate = null, documentNumbe
   // Filter by client search (name, phone, email, dni)
   if (clientSearch) {
     const searchTerm = clientSearch.toLowerCase();
-    invoices = invoices.filter(inv =>
-      inv.client.toLowerCase().includes(searchTerm) ||
-      inv.phone.includes(searchTerm) ||
-      inv.email.toLowerCase().includes(searchTerm) ||
-      inv.dni.toLowerCase().includes(searchTerm)
-    );
+    invoices = invoices.filter(inv => {
+      const clientName = inv.client ? inv.client.toLowerCase() : '';
+      const phone = inv.phone ? inv.phone.toString() : '';
+      const email = inv.email ? inv.email.toLowerCase() : '';
+      const dni = inv.dni ? inv.dni.toLowerCase() : '';
+      
+      return (
+        clientName.includes(searchTerm) ||
+        phone.includes(searchTerm) ||
+        email.includes(searchTerm) ||
+        dni.includes(searchTerm)
+      );
+    });
   }
 
   // Filter by document number
   if (documentNumber) {
     const searchTerm = documentNumber.toUpperCase();
-    invoices = invoices.filter(inv =>
-      inv.invoiceNumber.toUpperCase().includes(searchTerm)
+    invoices = invoices.filter(inv => 
+      inv.invoiceNumber && inv.invoiceNumber.toUpperCase().includes(searchTerm)
     );
   }
 
@@ -1386,7 +1411,7 @@ function showSection(section) {
     formSection.style.display = 'block';
   } else if (section === 'clients') {
     clientsSection.style.display = 'block';
-    loadClients();
+    loadClients('', true);
   } else if (section === 'invoices') {
     invoicesSection.style.display = 'block';
     loadInvoicesTable();

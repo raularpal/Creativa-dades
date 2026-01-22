@@ -148,8 +148,8 @@
     <!-- Clients Section -->
     <section id="clients-section" class="card glass" style="display:none;">
       <h2>Gestió de Clients</h2>
-      <div class="search-container">
-        <input type="text" id="client-search" placeholder="Buscar per nom, telèfon, correu o DNI..." />
+      <div class="search-container" style="margin-bottom: 20px;">
+        <input type="text" id="client-search" placeholder="Buscar per nom, telèfon o correu..." style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" />
       </div>
       <div id="clients-table-container"></div>
     </section>
@@ -160,29 +160,28 @@
       <div class="filter-container">
         <div class="field-group">
           <label for="filter-client-search">Buscar client:</label>
-          <input type="text" id="filter-client-search" placeholder="Nom, telèfon, correu o DNI..." />
+          <input type="text" id="filter-client-search" placeholder="Nom, telèfon, correu o DNI..." oninput="filterInvoices()" />
         </div>
         <div class="field-group">
           <label for="filter-document-number">Número de document:</label>
-          <input type="text" id="filter-document-number" placeholder="C0001, P0001..." />
+          <input type="text" id="filter-document-number" placeholder="C0001, P0001..." oninput="filterInvoices()" />
         </div>
         <div class="field-group">
           <label for="filter-start-date">Data d'entrada:</label>
-          <input type="date" id="filter-start-date" />
+          <input type="date" id="filter-start-date" onchange="filterInvoices()" />
         </div>
         <div class="field-group">
           <label for="filter-end-date">Data d'entrega:</label>
-          <input type="date" id="filter-end-date" />
+          <input type="date" id="filter-end-date" onchange="filterInvoices()" />
         </div>
         <div class="field-group">
           <label for="filter-paid-status">Estat de pagament:</label>
-          <select id="filter-paid-status">
+          <select id="filter-paid-status" onchange="filterInvoices()">
             <option value="">Tots</option>
             <option value="Sí">Sí</option>
             <option value="No">No</option>
           </select>
         </div>
-        <button class="btn-filter" onclick="filterInvoices()">Filtrar</button>
         <button class="btn-filter" onclick="clearFilters()">Esborrar filtres</button>
       </div>
       <div id="invoices-table-container"></div>
