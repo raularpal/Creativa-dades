@@ -29,17 +29,17 @@ function formatDate(dateInput) {
 // Map invoice from DB to App format
 function mapInvoiceFromDB(dbInvoice) {
   return {
-    invoiceNumber: dbInvoice.invoice_id,
-    documentType: dbInvoice.document_type,
+    invoiceNumber: String(dbInvoice.invoice_id || ''),
+    documentType: String(dbInvoice.document_type || ''),
     entryDate: dbInvoice.entry_date,
     deliveryDate: dbInvoice.delivery_date || 'dd/mm/aaaa',
-    client: dbInvoice.client_name,
-    dni: dbInvoice.client_nif,
-    phone: dbInvoice.client_phone,
-    email: dbInvoice.client_email,
-    address: dbInvoice.client_address,
-    city: dbInvoice.client_city,
-    postalCode: dbInvoice.client_zip,
+    client: String(dbInvoice.client_name || ''),
+    dni: String(dbInvoice.client_nif || ''),
+    phone: String(dbInvoice.client_phone || ''),
+    email: String(dbInvoice.client_email || ''),
+    address: String(dbInvoice.client_address || ''),
+    city: String(dbInvoice.client_city || ''),
+    postalCode: String(dbInvoice.client_zip || ''),
     products: dbInvoice.items,
     subtotal: dbInvoice.subtotal,
     applyIva: dbInvoice.iva_applied,
@@ -48,7 +48,22 @@ function mapInvoiceFromDB(dbInvoice) {
     paymentMethod: dbInvoice.payment_method,
     paidStatus: dbInvoice.paid_status || 'No',
     pdfUrl: dbInvoice.pdf_url,
-    timestamp: new Date(dbInvoice.date).getTime()
+    timestamp: (function (dateStr) {
+      if (!dateStr) return 0;
+      let d = new Date(dateStr);
+      if (!isNaN(d.getTime())) return d.getTime();
+
+      // Fallback for DD-MM-YYYY
+      if (typeof dateStr === 'string') {
+        const parts = dateStr.split(/[-/]/);
+        if (parts.length === 3) {
+          // Assume DD-MM-YYYY or DD/MM/YYYY
+          const d2 = new Date(parts[2], parts[1] - 1, parts[0]);
+          if (!isNaN(d2.getTime())) return d2.getTime();
+        }
+      }
+      return 0;
+    })(dbInvoice.date)
   };
 }
 
@@ -244,8 +259,9 @@ async function generatePDF(invoiceData) {
 
   // Data d'entrega: label bold, value normal
   doc.setFont(undefined, 'normal');
-  const wDeliveryVal = doc.getTextWidth(invoiceData.deliveryDate);
-  doc.text(invoiceData.deliveryDate, rightMargin, 15, { align: 'right' });
+  const deliveryDateStr = String(invoiceData.deliveryDate || '');
+  const wDeliveryVal = doc.getTextWidth(deliveryDateStr);
+  doc.text(deliveryDateStr, rightMargin, 15, { align: 'right' });
   doc.setFont(undefined, 'bold');
   const wDeliveryLbl = doc.getTextWidth("Data d'entrega: ");
   doc.text("Data d'entrega: ", rightMargin - wDeliveryVal, 15, { align: 'right' });
@@ -253,8 +269,9 @@ async function generatePDF(invoiceData) {
   // Data d'entrada: label bold, value normal (a la izquierda de Data d'entrega)
   const dateGap = 15; // Espacio entre las dos fechas
   doc.setFont(undefined, 'normal');
-  const wEntryVal = doc.getTextWidth(invoiceData.entryDate);
-  doc.text(invoiceData.entryDate, rightMargin - wDeliveryVal - wDeliveryLbl - dateGap, 15, { align: 'right' });
+  const entryDateStr = String(invoiceData.entryDate || '');
+  const wEntryVal = doc.getTextWidth(entryDateStr);
+  doc.text(entryDateStr, rightMargin - wDeliveryVal - wDeliveryLbl - dateGap, 15, { align: 'right' });
   doc.setFont(undefined, 'bold');
   doc.text("Data d'entrada: ", rightMargin - wDeliveryVal - wDeliveryLbl - dateGap - wEntryVal, 15, { align: 'right' });
 
@@ -265,8 +282,9 @@ async function generatePDF(invoiceData) {
   let currentY = 27; // Bajado una línea (antes 22)
 
   doc.setFont(undefined, 'normal');
-  const wClientVal = doc.getTextWidth(invoiceData.client);
-  doc.text(invoiceData.client, rightMargin, currentY, { align: 'right' });
+  const clientStr = String(invoiceData.client || '');
+  const wClientVal = doc.getTextWidth(clientStr);
+  doc.text(clientStr, rightMargin, currentY, { align: 'right' });
 
   doc.setFont(undefined, 'bold');
   doc.text('Client: ', rightMargin - wClientVal, currentY, { align: 'right' });
@@ -289,8 +307,9 @@ async function generatePDF(invoiceData) {
   if (invoiceData.email) {
     currentY += 5;
     doc.setFont(undefined, 'normal');
-    const wEmailVal = doc.getTextWidth(invoiceData.email);
-    doc.text(invoiceData.email, rightMargin, currentY, { align: 'right' });
+    const emailStr = String(invoiceData.email || '');
+    const wEmailVal = doc.getTextWidth(emailStr);
+    doc.text(emailStr, rightMargin, currentY, { align: 'right' });
 
     doc.setFont(undefined, 'bold');
     doc.text('Email: ', rightMargin - wEmailVal, currentY, { align: 'right' });
@@ -299,8 +318,9 @@ async function generatePDF(invoiceData) {
   // Telèfon: label bold, value normal
   currentY += 5;
   doc.setFont(undefined, 'normal');
-  const wPhoneVal = doc.getTextWidth(invoiceData.phone);
-  doc.text(invoiceData.phone, rightMargin, currentY, { align: 'right' });
+  const phoneStr = String(invoiceData.phone || '');
+  const wPhoneVal = doc.getTextWidth(phoneStr);
+  doc.text(phoneStr, rightMargin, currentY, { align: 'right' });
 
   doc.setFont(undefined, 'bold');
   doc.text('Telèfon: ', rightMargin - wPhoneVal, currentY, { align: 'right' });
@@ -309,8 +329,9 @@ async function generatePDF(invoiceData) {
   if (invoiceData.dni) {
     currentY += 5;
     doc.setFont(undefined, 'normal');
-    const wDniVal = doc.getTextWidth(invoiceData.dni);
-    doc.text(invoiceData.dni, rightMargin, currentY, { align: 'right' });
+    const dniStr = String(invoiceData.dni || '');
+    const wDniVal = doc.getTextWidth(dniStr);
+    doc.text(dniStr, rightMargin, currentY, { align: 'right' });
 
     doc.setFont(undefined, 'bold');
     doc.text('NIF/DNI: ', rightMargin - wDniVal, currentY, { align: 'right' });
@@ -468,7 +489,8 @@ async function generatePDF(invoiceData) {
   const wComandaLbl = doc.getTextWidth(comandaLbl);
   doc.text(comandaLbl, 20, footerY);
   doc.setFont(undefined, 'normal');
-  doc.text(invoiceData.invoiceNumber, 20 + wComandaLbl, footerY);
+  const documentNumberStr = String(invoiceData.invoiceNumber || '');
+  doc.text(documentNumberStr, 20 + wComandaLbl, footerY);
 
   // Derecha: Total: [value]
   doc.setFontSize(12);
@@ -491,7 +513,8 @@ async function generatePDF(invoiceData) {
 
     // Dividir el texto en líneas si es muy largo
     const maxWidth = 255; // Ancho máximo del texto dentro del cuadro
-    const lines = doc.splitTextToSize(invoiceData.observations, maxWidth);
+    const observationsStr = String(invoiceData.observations || '');
+    const lines = doc.splitTextToSize(observationsStr, maxWidth);
 
     // Escribir el texto dentro del cuadro (con un pequeño margen)
     doc.text(lines, 23, boxStartY + 5);
@@ -967,7 +990,7 @@ async function loadClients(searchTerm = '', forceRefresh = false) {
       const phone = c.phone ? c.phone.toString() : '';
       const email = c.email ? c.email.toLowerCase() : '';
       const dni = c.dni ? c.dni.toLowerCase() : '';
-      
+
       return (
         clientName.includes(term) ||
         phone.includes(term) ||
@@ -1048,7 +1071,7 @@ async function loadInvoicesTable(startDate = null, endDate = null, documentNumbe
       const phone = inv.phone ? inv.phone.toString() : '';
       const email = inv.email ? inv.email.toLowerCase() : '';
       const dni = inv.dni ? inv.dni.toLowerCase() : '';
-      
+
       return (
         clientName.includes(searchTerm) ||
         phone.includes(searchTerm) ||
@@ -1061,7 +1084,7 @@ async function loadInvoicesTable(startDate = null, endDate = null, documentNumbe
   // Filter by document number
   if (documentNumber) {
     const searchTerm = documentNumber.toUpperCase();
-    invoices = invoices.filter(inv => 
+    invoices = invoices.filter(inv =>
       inv.invoiceNumber && inv.invoiceNumber.toUpperCase().includes(searchTerm)
     );
   }
@@ -1085,7 +1108,20 @@ async function loadInvoicesTable(startDate = null, endDate = null, documentNumbe
   }
 
   // Sort by timestamp (newest first)
-  invoices.sort((a, b) => b.timestamp - a.timestamp);
+  invoices.sort((a, b) => {
+    // Primary sort: timestamp
+    if (b.timestamp !== a.timestamp) {
+      return b.timestamp - a.timestamp;
+    }
+
+    // Secondary sort: invoice number (descending)
+    // Extract numeric part from C0033, P0001, etc.
+    const getNum = (id) => {
+      const match = id.match(/\d+/);
+      return match ? parseInt(match[0], 10) : 0;
+    };
+    return getNum(b.invoiceNumber) - getNum(a.invoiceNumber);
+  });
 
   // Generate table HTML
   const tableHTML = `
