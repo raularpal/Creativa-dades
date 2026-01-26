@@ -142,9 +142,25 @@ function calculateTotal() {
   const discountInput = document.getElementById('discount');
   const discountPercent = discountInput ? (parseFloat(discountInput.value) || 0) : 0;
 
-  for (let i = 1; i <= productCount; i++) {
-    const priceInput = document.getElementById(`product-${i}-price`);
-    const quantityInput = document.getElementById(`product-${i}-quantity`);
+  const productItems = document.querySelectorAll('.product-item');
+
+  productItems.forEach((item) => {
+    // Navigate to inputs within the item. 
+    // We check for both name="product-price[]" (dynamic) and id-based (static initial)
+    // or just generally 'input[type="number"]' related to price/qty.
+    // The most robust way given our mixed markup is to look for the "Preu unitari" and "Quantitat" inputs inside the item container.
+
+    // Attempt to match by partial name or known types if specific IDs aren't guaranteed
+    let priceInput = item.querySelector('input[name="product-price[]"]');
+    if (!priceInput) {
+      // Fallback for the static first item which might still use specific ID/name
+      priceInput = item.querySelector('input[name*="-price"]');
+    }
+
+    let quantityInput = item.querySelector('input[name="product-quantity[]"]');
+    if (!quantityInput) {
+      quantityInput = item.querySelector('input[name*="-quantity"]');
+    }
 
     if (priceInput && quantityInput) {
       const price = parseFloat(priceInput.value) || 0;
@@ -163,32 +179,46 @@ function calculateTotal() {
       // Suma de los subtotales redondeados
       total += Math.round(lineTotal * 100) / 100;
     }
-  }
+  });
 
   document.getElementById('total-amount').textContent = total.toFixed(2);
   return { total, applyIva };
 }
 
 // Add product field
-function addProduct(productNumber) {
-  if (productNumber > 6) return;
-
+function addProduct() {
   const container = document.getElementById('products-container');
+  // Determine next number based on current count of items + 1
+  const currentItems = container.querySelectorAll('.product-item');
+  const nextNum = currentItems.length + 1;
+
+  // We'll use a unique ID for the DOM element but the label "Producte X" will be based on order
+  // Actually, to keep it simple and robust as requested: 
+  // "if I add product 2, remove it, then add again it should be product 2"
+  // implies we should just re-calculate the number based on count.
+  // Using timestamp or random ID for element ID prevents collision, 
+  // but we update the visible labels.
+
+  const uniqueId = Date.now();
+
   const productHTML = `
-    <div class="product-item" data-product="${productNumber}">
-      <h4>Producte ${productNumber}</h4>
+    <div class="product-item" data-id="${uniqueId}">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h4 class="product-title">Producte ${nextNum}</h4>
+        <button type="button" class="btn-danger" onclick="removeProduct(${uniqueId})" style="padding: 0.25rem 0.5rem; width: auto; margin-top: 0; font-size: 0.8rem;">Eliminar</button>
+      </div>
       <div class="product-fields">
         <div class="field-group">
-          <label for="product-${productNumber}-name">Nom del producte:</label>
-          <input type="text" id="product-${productNumber}-name" name="product-${productNumber}-name" required />
+          <label class="label-name">Nom del producte:</label>
+          <input type="text" name="product-name[]" required />
         </div>
         <div class="field-group">
-          <label for="product-${productNumber}-price">Preu unitari (€):</label>
-          <input type="number" step="0.01" id="product-${productNumber}-price" name="product-${productNumber}-price" required />
+          <label class="label-price">Preu unitari (€):</label>
+          <input type="number" step="0.01" name="product-price[]" required />
         </div>
         <div class="field-group">
-          <label for="product-${productNumber}-quantity">Quantitat:</label>
-          <input type="number" step="1" id="product-${productNumber}-quantity" name="product-${productNumber}-quantity" value="1" required />
+          <label class="label-quantity">Quantitat:</label>
+          <input type="number" step="1" name="product-quantity[]" value="1" required />
         </div>
       </div>
     </div>
@@ -196,29 +226,45 @@ function addProduct(productNumber) {
 
   container.insertAdjacentHTML('beforeend', productHTML);
 
-  // Add event listeners for new inputs
-  document.getElementById(`product-${productNumber}-price`).addEventListener('input', calculateTotal);
-  document.getElementById(`product-${productNumber}-quantity`).addEventListener('input', calculateTotal);
-
-  // Update add product checkbox
-  const addProductContainer = document.getElementById('add-product-container');
-
-  if (productNumber < 6) {
-    addProductContainer.innerHTML = `
-      <input type="checkbox" id="add-product-${productNumber + 1}" />
-      <label for="add-product-${productNumber + 1}" class="checkbox-label">Afegir Producte ${productNumber + 1}</label>
-    `;
-
-    document.getElementById(`add-product-${productNumber + 1}`).addEventListener('change', function (e) {
-      if (e.target.checked) {
-        productCount++;
-        addProduct(productCount);
-      }
-    });
-  } else {
-    addProductContainer.style.display = 'none';
-  }
+  // Add event listeners for new inputs (using the unique ID to find the element we just added)
+  const newItem = container.querySelector(`[data-id="${uniqueId}"]`);
+  newItem.querySelector('input[name="product-price[]"]').addEventListener('input', calculateTotal);
+  newItem.querySelector('input[name="product-quantity[]"]').addEventListener('input', calculateTotal);
 }
+
+// Make removeProduct globally available for inline onclick handlers
+window.removeProduct = function (uniqueId) {
+  const container = document.getElementById('products-container');
+  const item = container.querySelector(`[data-id="${uniqueId}"]`);
+  if (item) {
+    item.remove();
+    // After removal, re-index all product titles to ensure sequential order (1, 2, 3...)
+    updateProductIndices();
+    calculateTotal();
+  }
+};
+
+function updateProductIndices() {
+  const container = document.getElementById('products-container');
+  const items = container.querySelectorAll('.product-item');
+
+  items.forEach((item, index) => {
+    // Product numbers start at 1
+    const newNum = index + 1;
+
+    // Update Title
+    const title = item.querySelector('h4');
+    if (title) title.textContent = `Producte ${newNum}`;
+
+    // Check if it's the first product (usually static) or dynamic
+    // The static one in HTML might not have the remove button logic initially, 
+    // but if we want consistent behavior we should treat them uniform.
+    // Spec says "if I add product 2... remove". Product 1 is usually fixed.
+    // Let's just update the "Producte X" text.
+  });
+}
+
+
 
 // Generate PDF matching La Creativa template (horizontal)
 async function generatePDF(invoiceData) {
@@ -706,27 +752,97 @@ document.getElementById('invoice-form').addEventListener('submit', async (e) => 
   const formData = new FormData(e.target);
 
   // Collect products
+  // Collect products
   const products = [];
-  for (let i = 1; i <= productCount; i++) {
-    const name = formData.get(`product-${i}-name`);
-    const price = parseFloat(formData.get(`product-${i}-price`));
-    const quantity = parseInt(formData.get(`product-${i}-quantity`));
+  const productItems = document.querySelectorAll('.product-item');
 
-    if (name && price && quantity) {
-      products.push({
-        name,
-        price,
-        quantity,
-        total: price * quantity
-      });
+  productItems.forEach((item) => {
+    // Attempt to match by partial name or known types if specific IDs aren't guaranteed
+    // Similar logic to calculateTotal for robustness
+    let nameInput = item.querySelector('input[name="product-name[]"]');
+    if (!nameInput) nameInput = item.querySelector('input[name*="-name"]');
+
+    let priceInput = item.querySelector('input[name="product-price[]"]');
+    if (!priceInput) priceInput = item.querySelector('input[name*="-price"]');
+
+    let quantityInput = item.querySelector('input[name="product-quantity[]"]');
+    if (!quantityInput) quantityInput = item.querySelector('input[name*="-quantity"]');
+
+    if (nameInput && priceInput && quantityInput) {
+      const name = nameInput.value;
+      const price = parseFloat(priceInput.value);
+      const quantity = parseInt(quantityInput.value);
+
+      if (name && !isNaN(price) && !isNaN(quantity)) {
+        products.push({
+          name,
+          price,
+          quantity,
+          total: price * quantity
+        });
+      }
     }
-  }
+  });
 
   const applyIva = document.getElementById('apply-iva').checked;
 
   let total = 0;
   products.forEach(p => {
     let lineTotal = p.total;
+
+    // Check for discount (it was extracted later in original code, but we need it for line total calculation if applied per line logic exists, 
+    // though original code applies discount globally or per line? 
+    // Original total calc: 
+    /*
+      if (applyIva) {
+      lineTotal *= (1 + IVA_RATE);
+    }
+    total += Math.round(lineTotal * 100) / 100;
+    */
+    // Wait, original calculateTotal (lines 787-793) logic:
+    /*
+    products.forEach(p => {
+    let lineTotal = p.total;
+    if (applyIva) {
+      lineTotal *= (1 + IVA_RATE);
+    }
+    total += Math.round(lineTotal * 100) / 100;
+    });
+    */
+    // But lines 795-796:
+    /*
+    const subtotal = products.reduce((sum, p) => sum + p.total, 0);
+    const iva = total - subtotal;
+    */
+    // Wait, there is also a DISCOUNT logic in verify step 75:
+    /*
+    const discount = Math.max(0, Math.min(100, parseFloat(formData.get('discount')) || 0));
+    */
+    // And in `calculateTotal` (the one I edited earlier, lines 140+ around Step 29/60), discount IS applied to lineTotal.
+    // However, the submit handler's loop (lines 787+) shown in Step 78 did NOT include discount in `total` calculation?
+    // Let's check Step 78 again.
+    /*
+    786:   let total = 0;
+    787:   products.forEach(p => {
+    788:     let lineTotal = p.total;
+    789:     if (applyIva) {
+    790:       lineTotal *= (1 + IVA_RATE);
+    791:     }
+    792:     total += Math.round(lineTotal * 100) / 100;
+    793:   });
+    */
+    // It seems the submit handler's total calculation was MISSING the discount logic that `calculateTotal` (UI) has!
+    // I should probably fix that too to be consistent. 
+    // `calculateTotal` (lines 139+) gets discount from Input.
+
+    const discountInput = document.getElementById('discount');
+    const discountPercent = discountInput ? (parseFloat(discountInput.value) || 0) : 0;
+
+    // Apply discount
+    if (discountPercent > 0) {
+      lineTotal = lineTotal * (1 - discountPercent / 100);
+    }
+
     if (applyIva) {
       lineTotal *= (1 + IVA_RATE);
     }
@@ -1575,23 +1691,35 @@ function initializeApp() {
   showSection('form');
 
   // Add event listeners for initial product
-  document.getElementById('product-1-price').addEventListener('input', calculateTotal);
-  document.getElementById('product-1-quantity').addEventListener('input', calculateTotal);
-  document.getElementById('apply-iva').addEventListener('change', calculateTotal);
-  document.getElementById('discount').addEventListener('input', calculateTotal);
+  const p1Price = document.getElementById('product-1-price');
+  if (p1Price) p1Price.addEventListener('input', calculateTotal);
 
-  // Add product 2 checkbox listener
-  document.getElementById('add-product-2').addEventListener('change', function (e) {
-    if (e.target.checked) {
-      productCount++;
-      addProduct(productCount);
-    }
-  });
+  const p1Qty = document.getElementById('product-1-quantity');
+  if (p1Qty) p1Qty.addEventListener('input', calculateTotal);
+
+  const applyIva = document.getElementById('apply-iva');
+  if (applyIva) applyIva.addEventListener('change', calculateTotal);
+
+  const discount = document.getElementById('discount');
+  if (discount) discount.addEventListener('input', calculateTotal);
+
+  // Initialize Add Product Button
+  const addProductBtn = document.getElementById('add-product-btn');
+  if (addProductBtn) {
+    // Remove existing listeners to avoid duplicates if re-initialized (though simple addEventListener accumulates, usually safe here if init called once)
+    // Better: just add it.
+    addProductBtn.onclick = function () { // use onclick to overwrite previous assignment or avoid multiple listeners
+      addProduct();
+    };
+  }
 
   // Add client search listener
-  document.getElementById('client-search').addEventListener('input', function (e) {
-    loadClients(e.target.value);
-  });
+  const clientSearch = document.getElementById('client-search');
+  if (clientSearch) {
+    clientSearch.addEventListener('input', function (e) {
+      loadClients(e.target.value);
+    });
+  }
 
   calculateTotal();
 }
