@@ -41,10 +41,10 @@ function mapInvoiceFromDB(dbInvoice) {
     city: String(dbInvoice.client_city || ''),
     postalCode: String(dbInvoice.client_zip || ''),
     products: dbInvoice.items,
-    subtotal: dbInvoice.subtotal,
+    subtotal: parseFloat(dbInvoice.subtotal) || 0,
     applyIva: dbInvoice.iva_applied,
-    iva: dbInvoice.iva_total,
-    total: dbInvoice.total_general,
+    iva: parseFloat(dbInvoice.iva_total) || 0,
+    total: parseFloat(dbInvoice.total_general) || 0,
     paymentMethod: dbInvoice.payment_method,
     paidStatus: dbInvoice.paid_status || 'No',
     pdfUrl: dbInvoice.pdf_url,
@@ -970,6 +970,7 @@ document.getElementById('invoice-form').addEventListener('submit', async (e) => 
           // Navigate to fitxes page after successful update
           setTimeout(() => {
             showSection('invoices');
+            cachedInvoices = null;
             loadInvoicesTable();
           }, 2000); // Wait 2 seconds to show success message first
         }
@@ -986,6 +987,7 @@ document.getElementById('invoice-form').addEventListener('submit', async (e) => 
     // saveInvoice(invoiceData);
 
     // Reset form
+    cachedInvoices = null;
     e.target.reset();
 
     // Reset products to 1
@@ -1175,9 +1177,15 @@ async function downloadPDF(invoiceNumber) {
 }
 
 // Load invoices table
+// Cache for invoices
+let cachedInvoices = null;
+
 // Load invoices table
-async function loadInvoicesTable(startDate = null, endDate = null, documentNumber = null, clientSearch = null, paidStatus = null) {
-  let invoices = await fetchInvoices();
+async function loadInvoicesTable(startDate = null, endDate = null, documentNumber = null, clientSearch = null, paidStatus = null, forceRefresh = false) {
+  if (!cachedInvoices || forceRefresh) {
+    cachedInvoices = await fetchInvoices();
+  }
+  let invoices = cachedInvoices;
 
   // Filter by client search (name, phone, email, dni)
   if (clientSearch) {
@@ -1327,6 +1335,7 @@ async function editDeliveryDate(invoiceNumber) {
       if (!result.success) throw new Error(result.error);
 
       // Reload table
+      cachedInvoices = null;
       loadInvoicesTable();
       showStatus('✓ Data d\'entrega actualitzada', 'success');
     } catch (error) {
@@ -1360,6 +1369,7 @@ async function editPaidStatus(invoiceNumber) {
     if (!result.success) throw new Error(result.error);
 
     // Reload table
+    cachedInvoices = null;
     loadInvoicesTable();
     showStatus(`✓ Estat de pagament canviat a: ${newStatus}`, 'success');
   } catch (error) {
@@ -1507,6 +1517,7 @@ async function deleteInvoice(invoiceNumber) {
     if (!result.success) throw new Error(result.error);
 
     // Reload table
+    cachedInvoices = null;
     loadInvoicesTable();
     showStatus(`✓ Fitxa ${invoiceNumber} eliminada correctament`, 'success');
 
