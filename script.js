@@ -82,16 +82,35 @@ function mapClientFromDB(dbClient) {
   };
 }
 
-// Fetch invoices from Google Sheets
+// Fetch invoices from localStorage (primary) and Google Sheets (sync)
 async function fetchInvoices() {
-  try {
-    const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=getInvoices`);
-    const data = await response.json();
-    return data.map(mapInvoiceFromDB);
-  } catch (error) {
-    console.error('Error fetching invoices:', error);
-    return [];
+  let invoices = [];
+  
+  // 1. Get from localStorage
+  const localData = localStorage.getItem(STORAGE_KEY);
+  if (localData) {
+    try {
+      invoices = JSON.parse(localData);
+    } catch (e) {
+      console.error("Error parsing local invoices:", e);
+    }
   }
+  
+  // 2. If local is empty, try to fetch from Google Sheets and sync
+  if (invoices.length === 0) {
+    try {
+      const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=getInvoices`);
+      const data = await response.json();
+      invoices = data.map(mapInvoiceFromDB);
+      // Save to local for next time
+      if (invoices.length > 0) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(invoices));
+      }
+    } catch (error) {
+      console.error('Error fetching invoices from sheets:', error);
+    }
+  }
+  return invoices;
 }
 
 // Fetch clients from Google Sheets
@@ -106,30 +125,64 @@ async function fetchClients() {
   }
 }
 
-// Generate document number from Supabase count
-// Generate document number from Google Sheets (finding the last one)
+// Generate document number sequentially
 async function generateDocumentNumber(documentType) {
+  const prefix = documentType === 'Comanda' ? 'C' : 'P';
+  
   try {
+    // 1. Get counters from localStorage
+    const countersData = localStorage.getItem(COUNTERS_KEY);
+    const counters = countersData ? JSON.parse(countersData) : {};
+    let lastUsed = counters[prefix] || 0;
+    
+    // 2. Also check the actual invoices to ensure sequence is correct
     const invoices = await fetchInvoices();
     const filteredInvoices = invoices.filter(inv => inv.documentType === documentType);
 
-    let nextNum = 1;
     if (filteredInvoices.length > 0) {
-      // Sort by invoice number descending
-      filteredInvoices.sort((a, b) => b.invoiceNumber.localeCompare(a.invoiceNumber));
-      const lastId = filteredInvoices[0].invoiceNumber;
-      const numericPart = parseInt(lastId.substring(1));
-      if (!isNaN(numericPart)) {
-        nextNum = numericPart + 1;
+      // Find the maximum numeric part accurately
+      const numbers = filteredInvoices.map(inv => {
+        const match = (inv.invoiceNumber || '').match(/\d+/);
+        return match ? parseInt(match[0], 10) : 0;
+      }).filter(n => !isNaN(n));
+      
+      const maxInList = numbers.length > 0 ? Math.max(...numbers) : 0;
+      if (maxInList > lastUsed) {
+        lastUsed = maxInList;
       }
     }
 
-    const prefix = documentType === 'Comanda' ? 'C' : 'P';
+    const nextNum = lastUsed + 1;
+    
+    // 3. Persist the counter
+    counters[prefix] = nextNum;
+    localStorage.setItem(COUNTERS_KEY, JSON.stringify(counters));
+
     const number = nextNum.toString().padStart(4, '0');
     return `${prefix}${number}`;
   } catch (error) {
     console.error('Error generating document number:', error);
-    return `${documentType === 'Comanda' ? 'C' : 'P'}${Date.now().toString().slice(-4)}`;
+    return `${prefix}${Date.now().toString().slice(-4)}`;
+  }
+}
+
+// Helper to save to localStorage
+function saveToLocal(invoiceData) {
+  try {
+    const localData = localStorage.getItem(STORAGE_KEY);
+    let invoices = localData ? JSON.parse(localData) : [];
+    
+    // If it exists (e.g. edit mode), update it
+    const index = invoices.findIndex(inv => inv.invoiceNumber === invoiceData.invoiceNumber);
+    if (index !== -1) {
+      invoices[index] = invoiceData;
+    } else {
+      invoices.push(invoiceData);
+    }
+    
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(invoices));
+  } catch (e) {
+    console.error("Error saving to local storage:", e);
   }
 }
 
@@ -617,8 +670,11 @@ async function sendEmail(invoiceData, downloadLink) {
   }
 }
 
-// Save invoice to Google Sheets
+// Save invoice to Google Sheets and localStorage
 async function saveInvoiceToSupabase(invoiceData, downloadLink) {
+  // Sync to local storage first
+  saveToLocal(invoiceData);
+
   try {
     const invoiceRecord = {
       invoice_id: invoiceData.invoiceNumber,
@@ -661,8 +717,11 @@ async function saveInvoiceToSupabase(invoiceData, downloadLink) {
   }
 }
 
-// Update invoice in Google Sheets
+// Update invoice in Google Sheets and localStorage
 async function updateInvoiceToSupabase(invoiceData, downloadLink, originalInvoiceNumber) {
+  // Sync to local
+  saveToLocal(invoiceData);
+
   try {
     const invoiceRecord = {
       invoice_id: invoiceData.invoiceNumber,
@@ -787,56 +846,11 @@ document.getElementById('invoice-form').addEventListener('submit', async (e) => 
   const applyIva = document.getElementById('apply-iva').checked;
 
   let total = 0;
+  const discountInput = document.getElementById('discount');
+  const discountPercent = discountInput ? (parseFloat(discountInput.value) || 0) : 0;
+
   products.forEach(p => {
     let lineTotal = p.total;
-
-    // Check for discount (it was extracted later in original code, but we need it for line total calculation if applied per line logic exists, 
-    // though original code applies discount globally or per line? 
-    // Original total calc: 
-    /*
-      if (applyIva) {
-      lineTotal *= (1 + IVA_RATE);
-    }
-    total += Math.round(lineTotal * 100) / 100;
-    */
-    // Wait, original calculateTotal (lines 787-793) logic:
-    /*
-    products.forEach(p => {
-    let lineTotal = p.total;
-    if (applyIva) {
-      lineTotal *= (1 + IVA_RATE);
-    }
-    total += Math.round(lineTotal * 100) / 100;
-    });
-    */
-    // But lines 795-796:
-    /*
-    const subtotal = products.reduce((sum, p) => sum + p.total, 0);
-    const iva = total - subtotal;
-    */
-    // Wait, there is also a DISCOUNT logic in verify step 75:
-    /*
-    const discount = Math.max(0, Math.min(100, parseFloat(formData.get('discount')) || 0));
-    */
-    // And in `calculateTotal` (the one I edited earlier, lines 140+ around Step 29/60), discount IS applied to lineTotal.
-    // However, the submit handler's loop (lines 787+) shown in Step 78 did NOT include discount in `total` calculation?
-    // Let's check Step 78 again.
-    /*
-    786:   let total = 0;
-    787:   products.forEach(p => {
-    788:     let lineTotal = p.total;
-    789:     if (applyIva) {
-    790:       lineTotal *= (1 + IVA_RATE);
-    791:     }
-    792:     total += Math.round(lineTotal * 100) / 100;
-    793:   });
-    */
-    // It seems the submit handler's total calculation was MISSING the discount logic that `calculateTotal` (UI) has!
-    // I should probably fix that too to be consistent. 
-    // `calculateTotal` (lines 139+) gets discount from Input.
-
-    const discountInput = document.getElementById('discount');
-    const discountPercent = discountInput ? (parseFloat(discountInput.value) || 0) : 0;
 
     // Apply discount
     if (discountPercent > 0) {
@@ -846,6 +860,7 @@ document.getElementById('invoice-form').addEventListener('submit', async (e) => 
     if (applyIva) {
       lineTotal *= (1 + IVA_RATE);
     }
+    // Sum subtotals rounded
     total += Math.round(lineTotal * 100) / 100;
   });
 
@@ -1505,6 +1520,15 @@ async function deleteInvoice(invoiceNumber) {
   }
 
   try {
+    // 1. Delete from local storage
+    const localData = localStorage.getItem(STORAGE_KEY);
+    if (localData) {
+      let invoices = JSON.parse(localData);
+      invoices = invoices.filter(inv => inv.invoiceNumber !== invoiceNumber);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(invoices));
+    }
+
+    // 2. Try to delete from sheets
     const response = await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
       body: JSON.stringify({
@@ -1523,7 +1547,10 @@ async function deleteInvoice(invoiceNumber) {
 
   } catch (error) {
     console.error('Error deleting invoice:', error);
-    showStatus('Error eliminant la fitxa', 'error');
+    // If local was successful, we still reload table
+    cachedInvoices = null;
+    loadInvoicesTable();
+    showStatus('Error eliminant de Google Sheets, però s\'ha esborrat localment.', 'error');
   }
 }
 
