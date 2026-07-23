@@ -37,9 +37,10 @@
         </select>
 
         <div class="client-row">
-          <div class="field-group">
+          <div class="field-group autocomplete-wrapper">
             <label for="client">Client:</label>
-            <input type="text" id="client" name="client" required />
+            <input type="text" id="client" name="client" required autocomplete="off" />
+            <div id="client-suggestions" class="autocomplete-suggestions"></div>
           </div>
           <div class="field-group">
             <label for="dni">NIF/DNI:</label>
