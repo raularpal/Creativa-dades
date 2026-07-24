@@ -1100,6 +1100,9 @@ document.getElementById('invoice-form').addEventListener('submit', async (e) => 
     const pdf = await generatePDF(invoiceData);
     const ticketPdf = generateTicketPDF(invoiceData);
 
+    // Mostrar l'avís amb els botons de descàrrega de seguida, sense esperar a pujar/enviar/guardar
+    showSuccessModal(invoiceData.invoiceNumber, pdf, ticketPdf);
+
     // Enviar correu i guardar dades (si la URL de Google Script està configurada)
     if (GOOGLE_SCRIPT_URL !== 'PON_AQUI_TU_URL_DE_APPS_SCRIPT') {
       showStatus('Pujant PDF a Google Drive...', 'success');
@@ -1125,8 +1128,6 @@ document.getElementById('invoice-form').addEventListener('submit', async (e) => 
         } else {
           showStatus(isEditMode ? '✓ Fitxa actualitzada i guardada. Error en enviar el correu.' : '✓ Factura generada i guardada. Error en enviar el correu.', 'error');
         }
-
-        showSuccessModal(invoiceData.invoiceNumber, pdf, ticketPdf);
 
         // Reset form and navigate if in edit mode
         if (isEditMode) {
@@ -1372,10 +1373,10 @@ function applyClientToForm(client) {
 }
 
 // Wire up the "Client" field to suggest already-saved clients as the user types
-function setupClientAutocomplete() {
-  const clientInput = document.getElementById('client');
-  const suggestionsBox = document.getElementById('client-suggestions');
-  if (!clientInput || !suggestionsBox) return;
+function setupAutocomplete(inputId, suggestionsId, matchFn) {
+  const input = document.getElementById(inputId);
+  const suggestionsBox = document.getElementById(suggestionsId);
+  if (!input || !suggestionsBox) return;
 
   const hideSuggestions = () => {
     suggestionsBox.classList.remove('active');
@@ -1407,32 +1408,38 @@ function setupClientAutocomplete() {
     suggestionsBox.classList.add('active');
   };
 
-  clientInput.addEventListener('input', async () => {
-    const term = clientInput.value.trim().toLowerCase();
+  input.addEventListener('input', async () => {
+    const term = input.value.trim().toLowerCase();
     if (!term) {
       hideSuggestions();
       return;
     }
 
     const clients = await getClientsList();
-    const matches = clients
-      .filter(c => {
-        const nameMatch = c.client && c.client.toLowerCase().includes(term);
-        const phoneMatch = c.phone && c.phone.toString().toLowerCase().includes(term);
-        return nameMatch || phoneMatch;
-      })
-      .slice(0, 8);
+    const matches = clients.filter(c => matchFn(c, term)).slice(0, 8);
 
     renderSuggestions(matches);
   });
 
-  clientInput.addEventListener('focus', async () => {
-    if (clientInput.value.trim()) {
-      clientInput.dispatchEvent(new Event('input'));
+  input.addEventListener('focus', async () => {
+    if (input.value.trim()) {
+      input.dispatchEvent(new Event('input'));
     }
   });
 
-  clientInput.addEventListener('blur', hideSuggestions);
+  input.addEventListener('blur', hideSuggestions);
+}
+
+function setupClientAutocomplete() {
+  setupAutocomplete('client', 'client-suggestions', (c, term) =>
+    c.client && c.client.toLowerCase().includes(term)
+  );
+}
+
+function setupPhoneAutocomplete() {
+  setupAutocomplete('phone', 'phone-suggestions', (c, term) =>
+    c.phone && c.phone.toString().toLowerCase().includes(term)
+  );
 }
 
 // Download PDF
@@ -2047,6 +2054,7 @@ function initializeApp() {
   }
 
   setupClientAutocomplete();
+  setupPhoneAutocomplete();
 
   calculateTotal();
 }

@@ -49,9 +49,10 @@
         </div>
 
         <div class="contact-row">
-          <div class="field-group">
+          <div class="field-group autocomplete-wrapper">
             <label for="phone">Telèfon:</label>
-            <input type="tel" id="phone" name="phone" required />
+            <input type="tel" id="phone" name="phone" required autocomplete="off" />
+            <div id="phone-suggestions" class="autocomplete-suggestions"></div>
           </div>
           <div class="field-group">
             <label for="email">Correu electrònic del Client:</label>
