@@ -963,6 +963,24 @@ function showStatus(message, type) {
   }, 5000);
 }
 
+// Show the post-save confirmation modal with Factura/Tiquet download buttons
+function showSuccessModal(invoiceNumber, pdfDoc, ticketDoc) {
+  const modal = document.getElementById('success-modal');
+  document.getElementById('modal-invoice-number').textContent = `Fitxa: ${invoiceNumber}`;
+
+  document.getElementById('modal-download-factura-btn').onclick = () => {
+    pdfDoc.save(`Factura_${invoiceNumber}.pdf`);
+  };
+  document.getElementById('modal-download-tiquet-btn').onclick = () => {
+    ticketDoc.save(`Tiquet_${invoiceNumber}.pdf`);
+  };
+  document.getElementById('modal-close-btn').onclick = () => {
+    modal.style.display = 'none';
+  };
+
+  modal.style.display = 'flex';
+}
+
 // Handle form submission
 document.getElementById('invoice-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -1078,15 +1096,9 @@ document.getElementById('invoice-form').addEventListener('submit', async (e) => 
   try {
     showStatus('Generant factura...', 'success');
 
-    // Generar PDF
+    // Generar PDF i tiquet (es descarreguen des del avís de confirmació, no automàticament)
     const pdf = await generatePDF(invoiceData);
-
-    // Descarregar PDF
-    pdf.save(`Factura_${invoiceData.invoiceNumber}.pdf`);
-
-    // Generar i descarregar el tiquet per a la impressora tèrmica
     const ticketPdf = generateTicketPDF(invoiceData);
-    ticketPdf.save(`Tiquet_${invoiceData.invoiceNumber}.pdf`);
 
     // Enviar correu i guardar dades (si la URL de Google Script està configurada)
     if (GOOGLE_SCRIPT_URL !== 'PON_AQUI_TU_URL_DE_APPS_SCRIPT') {
@@ -1113,6 +1125,8 @@ document.getElementById('invoice-form').addEventListener('submit', async (e) => 
         } else {
           showStatus(isEditMode ? '✓ Fitxa actualitzada i guardada. Error en enviar el correu.' : '✓ Factura generada i guardada. Error en enviar el correu.', 'error');
         }
+
+        showSuccessModal(invoiceData.invoiceNumber, pdf, ticketPdf);
 
         // Reset form and navigate if in edit mode
         if (isEditMode) {
@@ -1548,7 +1562,7 @@ async function loadInvoicesTable(startDate = null, endDate = null, documentNumbe
             <th>Direcció</th>
             <th>Total (€)</th>
             <th>Pagat</th>
-            <th>PDF</th>
+            <th>Descarregar</th>
           </tr>
         </thead>
         <tbody>
@@ -1568,9 +1582,8 @@ async function loadInvoicesTable(startDate = null, endDate = null, documentNumbe
               <td>${inv.total.toFixed(2)} €</td>
               <td onclick="editPaidStatus('${inv.invoiceNumber}')" style="cursor: pointer;" title="Clic per editar">${inv.paidStatus}</td>
               <td>
-                <a class="download-link" onclick="downloadPDF('${inv.invoiceNumber}')">Factura</a>
-                &nbsp;/&nbsp;
-                <a class="download-link" onclick="downloadTicket('${inv.invoiceNumber}')">Tiquet</a>
+                <button type="button" class="btn-download-small" onclick="downloadPDF('${inv.invoiceNumber}')">Factura</button>
+                <button type="button" class="btn-download-small" onclick="downloadTicket('${inv.invoiceNumber}')">Tiquet</button>
               </td>
             </tr>
           `).join('')}
