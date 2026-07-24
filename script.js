@@ -1103,6 +1103,58 @@ document.getElementById('invoice-form').addEventListener('submit', async (e) => 
     // Mostrar l'avís amb els botons de descàrrega de seguida, sense esperar a pujar/enviar/guardar
     showSuccessModal(invoiceData.invoiceNumber, pdf, ticketPdf);
 
+    // Buidar el formulari de seguida (no cal esperar al desat al núvol)
+    cachedInvoices = null;
+    cachedClients = null;
+
+    if (isEditMode) {
+      form.reset();
+      form.removeAttribute('data-edit-mode');
+      form.removeAttribute('data-invoice-number');
+      form.removeAttribute('data-original-entry-date');
+      const submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.textContent = 'Generar i enviar fitxa';
+    } else {
+      e.target.reset();
+    }
+
+    document.getElementById('products-container').innerHTML = `
+      <div class="product-item" data-product="1">
+        <h4>Producte 1</h4>
+        <div class="product-fields">
+          <div class="field-group">
+            <label for="product-1-name">Nom del producte:</label>
+            <input type="text" id="product-1-name" name="product-1-name" required />
+          </div>
+          <div class="field-group">
+            <label for="product-1-price">Preu unitari (€):</label>
+            <input type="number" step="0.01" id="product-1-price" name="product-1-price" required />
+          </div>
+          <div class="field-group">
+            <label for="product-1-quantity">Quantitat:</label>
+            <input type="number" step="1" id="product-1-quantity" name="product-1-quantity" value="1" required />
+          </div>
+        </div>
+      </div>
+    `;
+    document.getElementById('add-product-container').innerHTML = `
+      <input type="checkbox" id="add-product-2" />
+      <label for="add-product-2" class="checkbox-label">Afegir Producte 2</label>
+    `;
+    document.getElementById('add-product-container').style.display = 'flex';
+    productCount = 1;
+
+    document.getElementById('product-1-price').addEventListener('input', calculateTotal);
+    document.getElementById('product-1-quantity').addEventListener('input', calculateTotal);
+    document.getElementById('add-product-2').addEventListener('change', function (e) {
+      if (e.target.checked) {
+        productCount++;
+        addProduct(productCount);
+      }
+    });
+
+    calculateTotal();
+
     // Enviar correu i guardar dades (si la URL de Google Script està configurada)
     if (GOOGLE_SCRIPT_URL !== 'PON_AQUI_TU_URL_DE_APPS_SCRIPT') {
       showStatus('Pujant PDF a Google Drive...', 'success');
@@ -1129,37 +1181,7 @@ document.getElementById('invoice-form').addEventListener('submit', async (e) => 
           showStatus(isEditMode ? '✓ Fitxa actualitzada i guardada. Error en enviar el correu.' : '✓ Factura generada i guardada. Error en enviar el correu.', 'error');
         }
 
-        // Reset form and navigate if in edit mode
         if (isEditMode) {
-          form.reset();
-          form.removeAttribute('data-edit-mode');
-          form.removeAttribute('data-invoice-number');
-          form.removeAttribute('data-original-entry-date');
-          const submitBtn = form.querySelector('button[type="submit"]');
-          submitBtn.textContent = 'Generar i enviar fitxa';
-
-          // Reset products container to default state
-          document.getElementById('products-container').innerHTML = `
-            <div class="product-item" data-product="1">
-              <h4>Producte 1</h4>
-              <div class="product-fields">
-                <div class="field-group">
-                  <label for="product-1-name">Nom del producte:</label>
-                  <input type="text" id="product-1-name" name="product-1-name" required />
-                </div>
-                <div class="field-group">
-                  <label for="product-1-price">Preu unitari (€):</label>
-                  <input type="number" step="0.01" id="product-1-price" name="product-1-price" required />
-                </div>
-                <div class="field-group">
-                  <label for="product-1-quantity">Quantitat:</label>
-                  <input type="number" step="1" id="product-1-quantity" name="product-1-quantity" value="1" required />
-                </div>
-              </div>
-            </div>
-          `;
-          document.getElementById('add-product-2').checked = false;
-
           // Navigate to fitxes page after successful update
           setTimeout(() => {
             showSection('invoices');
@@ -1175,56 +1197,6 @@ document.getElementById('invoice-form').addEventListener('submit', async (e) => 
     } else {
       showStatus('✓ Factura generada. Configura la URL de Google Apps Script per guardar i enviar.', 'success');
     }
-
-    // Save to localStorage
-    // No need to save to localStorage anymore
-    // saveInvoice(invoiceData);
-
-    // Reset form
-    cachedInvoices = null;
-    cachedClients = null;
-    e.target.reset();
-
-    // Reset products to 1
-    const container = document.getElementById('products-container');
-    container.innerHTML = `
-      <div class="product-item" data-product="1">
-        <h4>Producte 1</h4>
-        <div class="product-fields">
-          <div class="field-group">
-            <label for="product-1-name">Nom del producte:</label>
-            <input type="text" id="product-1-name" name="product-1-name" required />
-          </div>
-          <div class="field-group">
-            <label for="product-1-price">Preu unitari (€):</label>
-            <input type="number" step="0.01" id="product-1-price" name="product-1-price" required />
-          </div>
-          <div class="field-group">
-            <label for="product-1-quantity">Quantitat:</label>
-            <input type="number" step="1" id="product-1-quantity" name="product-1-quantity" value="1" required />
-          </div>
-        </div>
-      </div>
-    `;
-
-    productCount = 1;
-    document.getElementById('add-product-container').innerHTML = `
-      <input type="checkbox" id="add-product-2" />
-      <label for="add-product-2" class="checkbox-label">Afegir Producte 2</label>
-    `;
-    document.getElementById('add-product-container').style.display = 'flex';
-
-    // Re-add event listeners
-    document.getElementById('product-1-price').addEventListener('input', calculateTotal);
-    document.getElementById('product-1-quantity').addEventListener('input', calculateTotal);
-    document.getElementById('add-product-2').addEventListener('change', function (e) {
-      if (e.target.checked) {
-        productCount++;
-        addProduct(productCount);
-      }
-    });
-
-    calculateTotal();
 
   } catch (error) {
     console.error('Error:', error);
