@@ -676,6 +676,14 @@ function drawTicketContent(doc, invoiceData, pageWidth, margin) {
   doc.text(clientLines, margin + clientLabelWidth, y);
   y += 4.5 * clientLines.length;
 
+  doc.setFont(undefined, 'bold');
+  const phoneLabel = 'Telèfon: ';
+  doc.text(phoneLabel, margin, y);
+  const phoneLabelWidth = doc.getTextWidth(phoneLabel);
+  doc.setFont(undefined, 'normal');
+  doc.text(String(invoiceData.phone || ''), margin + phoneLabelWidth, y);
+  y += 4.5;
+
   dashedLine();
   y += 5;
 
@@ -1433,6 +1441,26 @@ async function downloadPDF(invoiceNumber) {
   }
 }
 
+// Download ticket PDF
+async function downloadTicket(invoiceNumber) {
+  const invoices = await fetchInvoices();
+  const invoiceData = invoices.find(inv => inv.invoiceNumber === invoiceNumber);
+
+  if (invoiceData) {
+    try {
+      showStatus('Generant tiquet...', 'success');
+      const ticketPdf = generateTicketPDF(invoiceData);
+      ticketPdf.save(`Tiquet_${invoiceNumber}.pdf`);
+      showStatus('Tiquet descarregat correctament', 'success');
+    } catch (error) {
+      console.error('Error generant tiquet:', error);
+      showStatus('Error en generar el tiquet', 'error');
+    }
+  } else {
+    alert('Factura no trobada');
+  }
+}
+
 // Load invoices table
 // Cache for invoices
 let cachedInvoices = null;
@@ -1539,7 +1567,11 @@ async function loadInvoicesTable(startDate = null, endDate = null, documentNumbe
               <td>${inv.address}, ${inv.city} ${inv.postalCode}</td>
               <td>${inv.total.toFixed(2)} €</td>
               <td onclick="editPaidStatus('${inv.invoiceNumber}')" style="cursor: pointer;" title="Clic per editar">${inv.paidStatus}</td>
-              <td><a class="download-link" onclick="downloadPDF('${inv.invoiceNumber}')">Descarregar</a></td>
+              <td>
+                <a class="download-link" onclick="downloadPDF('${inv.invoiceNumber}')">Factura</a>
+                &nbsp;/&nbsp;
+                <a class="download-link" onclick="downloadTicket('${inv.invoiceNumber}')">Tiquet</a>
+              </td>
             </tr>
           `).join('')}
         </tbody>
